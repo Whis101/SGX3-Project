@@ -80,6 +80,32 @@ def show_describe():
     describe_df = traffic_df.describe(include='all')  # include='all' to cover all column types
     return jsonify(describe_df.to_dict())
 
+@app.route("/filter")
+def query():
+    global traffic_df
+    try:
+        col_name = request.args.get('col')
+        col_val = request.args.get('col_val')
+        if col_name not in traffic_df.columns:
+            return f"column {col_name} not in dataframe"
+    except TypeError:
+        f"Please specify the column name to use"
+    try:
+        year = request.args.get('year')
+    except ValueError:
+        return f"year needs to be an integer"
+    
+    traffic_df['Published Date'] = pd.to_datetime(traffic_df['Published Date'])
+    if year is not None:
+        year = int(year)
+        traffic_df_queried = traffic_df[(traffic_df[col_name]==col_val)&(traffic_df['Published Date'].dt.year==year)]
+    else:
+        traffic_df_queried = traffic_df[traffic_df[col_name]==col_val]
+    return jsonify(traffic_df_queried.to_dict(orient='records'))
+
+
+        
+
 if __name__ == "__main__": 
     load_traffic_data()  # <- This runs BEFORE the server starts
     app.run(debug=True, host="0.0.0.0", port=8022)
