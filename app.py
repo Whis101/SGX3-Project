@@ -115,16 +115,16 @@ def between():
             end = int(end)
 
         except ValueError:
-            return f"start and end need to be an integer"
+            return jsonify("start and end need to be an integer")
 
         if start>=0 and start<end and end<=23:
 
             queried_df = traffic_df[(traffic_df['Published Date'].dt.hour>=start) & (traffic_df['Published Date'].dt.hour<=end)]
             return jsonify(queried_df.to_dict(orient='records'))
         else:
-            return "Invalid start-end value pair"
+            return jsonify("Invalid start-end value pair")
     except TypeError:
-        return "Enter values for start and end"
+        return jsonify("Enter values for start and end")
 
 
 @app.route('/coords')
