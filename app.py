@@ -131,13 +131,26 @@ def between():
 def find():
     global traffic_df
 
-    target_lat = float(request.args.get('lat'))
-    target_lon = float(request.args.get('lon'))
+    try:
+        lat = float(request.args.get("lat"))
+        lon = float(request.args.get("lon"))
+        radius = float(request.args.get("radius", 1))  # Default 1 km
+    except (TypeError, ValueError):
+        return "Please provide valid 'lat', 'lon', and optional 'radius' (in km).", 400
 
-    lat_margin = 1 / 111  # ≈ 0.009 degrees (~1 km)
-    lon_margin = 1 / (111 * np.cos(np.radians(target_lat)))
+    def haversine(lat1, lon1, lat2, lon2):
+        R = 6371  # Earth radius in km
+        lat1_rad, lon1_rad = np.radians(lat1), np.radians(lon1)
+        lat2_rad, lon2_rad = np.radians(lat2), np.radians(lon2)
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        a = np.sin(dlat / 2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2)**2
+        c = 2 * np.arcsin(np.sqrt(a))
+        return R * c
+    distances = haversine(lat, lon, traffic_df["Latitude"].values, traffic_df["Longitude"].values)
 
-    return jsonify(traffic_df[(traffic_df['Latitude'] >= target_lat - lat_margin) & (traffic_df['Latitude'] <= target_lat + lat_margin) &(traffic_df['Longitude'] >= target_lon - lon_margin) &(traffic_df['Longitude'] <= target_lon + lon_margin)].to_dict(orient='records'))
+    nearby = traffic_df[distances <= radius]
+    return jsonify(nearby.to_dict(orient="records"))
 
 
 
