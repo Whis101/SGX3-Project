@@ -3,7 +3,7 @@ from flask import Flask, jsonify, request
 import pandas as pd
 import os
 import io
-
+import numpy as np
 # Define your global DataFrame
 traffic_df = None
 
@@ -13,6 +13,7 @@ def load_traffic_data():
     global traffic_df
     print("Loading Austin Traffic Data...")
     traffic_df = pd.read_csv("atxtraffic.csv")
+    traffic_df['Published Date'] = pd.to_datetime(traffic_df['Published Date'])
     print(f"Loaded {len(traffic_df)} rows into memory.")
 
 @app.route("/")
@@ -103,8 +104,42 @@ def query():
         traffic_df_queried = traffic_df[traffic_df[col_name]==col_val]
     return jsonify(traffic_df_queried.to_dict(orient='records'))
 
+@app.route("/hours")
+def between():
+    global traffic_df
+    try:
+        start = request.args.get('start')
+        end = request.args.get('end')
+        try:
+            start = int(start)
+            end = int(end)
 
-        
+        except ValueError:
+            return f"start and end need to be an integer"
+
+        if start>=0 and start<end and end<=23:
+
+            queried_df = traffic_df[(traffic_df['Published Date'].dt.hour>=start) & (traffic_df['Published Date'].dt.hour<=end)]
+            return jsonify(queried_df.to_dict(orient='records'))
+        else:
+            return "Invalid start-end value pair"
+    except TypeError:
+        return "Enter values for start and end"
+
+
+@app.route('/coords')
+def find():
+    global traffic_df
+
+    target_lat = float(request.args.get('lat'))
+    target_lon = float(request.args.get('lon'))
+
+    lat_margin = 1 / 111  # ≈ 0.009 degrees (~1 km)
+    lon_margin = 1 / (111 * np.cos(np.radians(target_lat)))
+
+    return jsonify(traffic_df[(traffic_df['Latitude'] >= target_lat - lat_margin) & (traffic_df['Latitude'] <= target_lat + lat_margin) &(traffic_df['Longitude'] >= target_lon - lon_margin) &(traffic_df['Longitude'] <= target_lon + lon_margin)].to_dict(orient='records'))
+
+
 
 if __name__ == "__main__": 
     load_traffic_data()  # <- This runs BEFORE the server starts
